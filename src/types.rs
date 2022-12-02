@@ -1,22 +1,22 @@
-use crate::de::read_len;
+use crate::de::{check_buf, check_buf_zero, read_len};
 use crate::error::{DecodeError, DecodeResult};
 use bytes::Buf;
 use std::fmt::{Display, Formatter};
 
-pub const BYTE: u8 = 0;
-pub const SHORT: u8 = 1;
-pub const INT: u8 = 2;
-pub const LONG: u8 = 3;
-pub const FLOAT: u8 = 4;
-pub const DOUBLE: u8 = 5;
+pub const BYTE: u8 = 0; // i8 / u8
+pub const SHORT: u8 = 1; // i16 / u16
+pub const INT: u8 = 2; // i32 / u32
+pub const LONG: u8 = 3; // i64 / u64
+pub const FLOAT: u8 = 4; // f32
+pub const DOUBLE: u8 = 5; // f64
 pub const SHORT_BYTES: u8 = 6;
 pub const LONG_BYTES: u8 = 7;
-pub const MAP: u8 = 8;
-pub const LIST: u8 = 9;
+pub const MAP: u8 = 8; // Map<String, *Any>
+pub const LIST: u8 = 9; // Vec<*Any>
 pub const STRUCT_START: u8 = 10;
 pub const STRUCT_END: u8 = 11;
-pub const EMPTY: u8 = 12;
-pub const SINGLE_LIST: u8 = 13;
+pub const EMPTY: u8 = 12; // *Any
+pub const SINGLE_LIST: u8 = 13; // Vec<T>
 
 #[derive(Debug)]
 pub enum Type {
@@ -74,6 +74,10 @@ macro_rules! primitive_type {
                 struct_name: &'static str,
                 field: &'static str,
             ) -> $crate::error::DecodeResult<$type> {
+                if t == $crate::types::EMPTY {
+                    return ::core::result::Result::Ok(0 as _);
+                }
+
                 if t != $crate::types::$jce_type {
                     return ::core::result::Result::Err($crate::error::DecodeError::WrongType {
                         struct_name,
@@ -92,46 +96,11 @@ macro_rules! primitive_type {
     };
 }
 
-macro_rules! byte_type {
-    (
-        $type:ident,
-        $jce_type:ident,
-        $fun:ident
-    ) => {
-        pub mod $type {
-            pub fn read<B: ::bytes::Buf>(
-                buf: &mut B,
-                t: u8,
-                struct_name: &'static str,
-                field: &'static str,
-            ) -> $crate::error::DecodeResult<$type> {
-                if t == $crate::types::EMPTY {
-                    return ::core::result::Result::Ok(0);
-                }
-
-                if t != $crate::types::$jce_type {
-                    return ::core::result::Result::Err($crate::error::DecodeError::WrongType {
-                        struct_name,
-                        field,
-                        val_type: t,
-                    });
-                }
-
-                if ::std::mem::size_of::<$type>() > buf.remaining() {
-                    return ::core::result::Result::Err($crate::error::DecodeError::Eof);
-                }
-
-                ::core::result::Result::Ok(buf.$fun())
-            }
-        }
-    };
-}
-
-byte_type! {
+primitive_type! {
     i8, BYTE, get_i8
 }
 
-byte_type! {
+primitive_type! {
     u8, BYTE, get_u8
 }
 
@@ -271,8 +240,15 @@ pub mod jce_struct {
 }
 
 pub fn skip_field<B: Buf>(buf: &mut B, t: u8) -> DecodeResult<()> {
-    fn read_type<B: Buf>(buf: &mut B) -> u8 {
-        buf.get_u8() & 0xF
+    fn read_type<B: Buf>(buf: &mut B) -> DecodeResult<u8> {
+        check_buf_zero(buf)?;
+        Ok(buf.get_u8() & 0xF)
+    }
+
+    fn skip_elem<B: Buf>(buf: &mut B) -> DecodeResult<()> {
+        let t = read_type(buf)?;
+
+        skip_field(buf, t)
     }
 
     match t {
@@ -282,15 +258,16 @@ pub fn skip_field<B: Buf>(buf: &mut B, t: u8) -> DecodeResult<()> {
         LONG | DOUBLE => buf.advance(8),
         SHORT_BYTES => {
             let len = buf.get_u8() as usize;
+            check_buf(buf, len)?;
             buf.advance(len);
         }
         LONG_BYTES => {
             let len = buf.get_u32() as usize;
+            check_buf(buf, len)?;
             buf.advance(len);
         }
         STRUCT_START => {
-            let t = read_type(buf);
-            skip_field(buf, t)?;
+            skip_elem(buf)?;
         }
         STRUCT_END | EMPTY => {}
         MAP => {
@@ -298,20 +275,18 @@ pub fn skip_field<B: Buf>(buf: &mut B, t: u8) -> DecodeResult<()> {
 
             for _ in 0..len * 2 {
                 // skip key and value
-                let t = read_type(buf);
-                skip_field(buf, t)?;
+                skip_elem(buf)?;
             }
         }
         LIST => {
             let len = read_len(buf)?;
 
             for _ in 0..len {
-                let t = read_type(buf);
-                skip_field(buf, t)?;
+                skip_elem(buf)?;
             }
         }
         SINGLE_LIST => {
-            let tt = read_type(buf);
+            let tt = read_type(buf)?;
 
             let len = read_len(buf)?;
 
@@ -325,7 +300,7 @@ pub fn skip_field<B: Buf>(buf: &mut B, t: u8) -> DecodeResult<()> {
 
             buf.advance(len * single);
         }
-        _ => return Err(DecodeError::FieldTypeIncorrect),
+        _ => return Err(DecodeError::TypeIncorrect),
     }
 
     Ok(())

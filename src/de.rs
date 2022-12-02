@@ -77,7 +77,7 @@ pub fn read_len<B: Buf>(buf: &mut B) -> DecodeResult<usize> {
             buf.get_u64() as usize
         }
         types::EMPTY => 0usize,
-        _ => return Err(DecodeError::FieldTypeIncorrect),
+        _ => return Err(DecodeError::TypeIncorrect),
     };
 
     Ok(len)

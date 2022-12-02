@@ -10,7 +10,7 @@ pub enum DecodeError {
         field: &'static str,
         val_type: u8,
     },
-    FieldTypeIncorrect,
+    TypeIncorrect,
     Eof,
     WrongLength,
 }
@@ -34,7 +34,7 @@ impl Display for DecodeError {
 
                 Ok(())
             }
-            Self::FieldTypeIncorrect => f.write_str("field type is incorrect"),
+            Self::TypeIncorrect => f.write_str("type incorrect"),
             Self::Eof => f.write_str("unexpected eof"),
             Self::WrongLength => f.write_str("wrong length while decoding array types"),
         }
