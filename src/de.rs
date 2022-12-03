@@ -57,7 +57,7 @@ pub(crate) fn read_len<B: Buf>(buf: &mut B) -> DecodeResult<usize> {
             buf.get_u64() as usize
         }
         types::EMPTY => 0usize,
-        _ => return Err(DecodeError::NoSuchType),
+        _ => return Err(DecodeError::InvalidType),
     };
 
     Ok(len)

@@ -11,6 +11,3 @@ bytes = "1"
 [dependencies.jce-derive]
 version = "0"
 path = "jce-derive"
-
-[dev-dependencies.jce-derive]
-path = "jce-derive"

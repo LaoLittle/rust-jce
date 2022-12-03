@@ -148,7 +148,7 @@ fn read_value<B: Buf>(buf: &mut B, t: u8) -> DecodeResult<Value> {
         }),
         types::EMPTY => Value::Empty,
         _ => {
-            return Err(DecodeError::TypeIncorrect {
+            return Err(DecodeError::IncorrectType {
                 struct_name: "Map",
                 field: "",
                 val_type: t,
@@ -192,5 +192,12 @@ mod tests {
         let s = read_to_hashmap(bytes);
 
         println!("{:?}", s);
+    }
+
+    #[test]
+    fn de2() {
+        let bytes = [0, 127, 24, 12];
+
+        println!("{:?}", read_to_hashmap(bytes.as_ref()));
     }
 }

@@ -5,25 +5,25 @@ pub type DecodeResult<T> = Result<T, DecodeError>;
 
 #[derive(Debug)]
 pub enum DecodeError {
-    TypeIncorrect {
+    IncorrectType {
         struct_name: &'static str,
         field: &'static str,
         val_type: u8,
     },
-    NoSuchType,
+    InvalidType,
     Eof,
-    WrongLength,
+    InvalidLength,
 }
 
 impl Display for DecodeError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::TypeIncorrect {
+            Self::IncorrectType {
                 struct_name,
                 field,
                 val_type,
             } => {
-                f.write_str("wrong type(")?;
+                f.write_str("incorrect type(")?;
                 if let Some(t) = Type::from_u8(*val_type) {
                     Display::fmt(&t, f)?;
                 } else {
@@ -34,9 +34,9 @@ impl Display for DecodeError {
 
                 Ok(())
             }
-            Self::NoSuchType => f.write_str("type incorrect"),
+            Self::InvalidType => f.write_str("invalid type"),
             Self::Eof => f.write_str("unexpected eof"),
-            Self::WrongLength => f.write_str("wrong length while decoding array types"),
+            Self::InvalidLength => f.write_str("invalid length"),
         }
     }
 }

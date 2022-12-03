@@ -23,3 +23,8 @@ pub fn write_empty<B: BufMut>(buf: &mut B, tag: u8) {
 pub fn write_type<B: BufMut>(buf: &mut B, t: u8) {
     buf.put_u8(t);
 }
+
+pub fn write_len<B: BufMut>(buf: &mut B, len: usize) {
+    buf.put_u8(crate::types::INT);
+    buf.put_u32(len as u32);
+}
