@@ -4,6 +4,7 @@ pub mod bytes;
 pub mod de;
 pub mod error;
 mod macros;
+mod ser;
 pub mod types;
 pub mod value;
 
@@ -12,6 +13,10 @@ pub use jce_derive::JceStruct;
 
 pub trait JceStruct: Sized {
     fn encode_raw<B: BufMut>(&self, buf: &mut B);
+
+    fn encode<B: BufMut>(&self, mut buf: B) {
+        self.encode_raw(&mut buf);
+    }
 
     fn encoded_len(&self) -> usize;
 

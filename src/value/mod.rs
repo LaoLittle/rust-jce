@@ -148,7 +148,7 @@ fn read_value<B: Buf>(buf: &mut B, t: u8) -> DecodeResult<Value> {
         }),
         types::EMPTY => Value::Empty,
         _ => {
-            return Err(DecodeError::WrongType {
+            return Err(DecodeError::TypeIncorrect {
                 struct_name: "Map",
                 field: "",
                 val_type: t,

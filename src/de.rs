@@ -1,24 +1,7 @@
 use crate::error::{DecodeError, DecodeResult};
+use crate::types::JceHeader;
 use crate::{check_type, types};
 use bytes::Buf;
-
-#[derive(Debug)]
-pub struct JceHeader {
-    val_type: u8,
-    tag: u8,
-}
-
-impl JceHeader {
-    #[inline]
-    pub fn tag(&self) -> u8 {
-        self.tag
-    }
-
-    #[inline]
-    pub fn value_type(&self) -> u8 {
-        self.val_type
-    }
-}
 
 #[inline]
 pub(crate) fn check_buf<B: Buf>(buf: &mut B, min: usize) -> DecodeResult<()> {
@@ -34,10 +17,7 @@ pub(crate) fn check_buf_zero<B: Buf>(buf: &mut B) -> DecodeResult<()> {
     check_buf(buf, 1)
 }
 
-pub fn read_header<B>(buf: &mut B) -> DecodeResult<JceHeader>
-where
-    B: Buf,
-{
+pub fn read_header<B: Buf>(buf: &mut B) -> DecodeResult<JceHeader> {
     check_buf_zero(buf)?;
 
     let head = buf.get_u8();
@@ -54,7 +34,7 @@ where
     Ok(JceHeader { val_type: t, tag })
 }
 
-pub fn read_len<B: Buf>(buf: &mut B) -> DecodeResult<usize> {
+pub(crate) fn read_len<B: Buf>(buf: &mut B) -> DecodeResult<usize> {
     check_buf_zero(buf)?;
 
     let len_type = buf.get_u8();
@@ -77,7 +57,7 @@ pub fn read_len<B: Buf>(buf: &mut B) -> DecodeResult<usize> {
             buf.get_u64() as usize
         }
         types::EMPTY => 0usize,
-        _ => return Err(DecodeError::TypeIncorrect),
+        _ => return Err(DecodeError::NoSuchType),
     };
 
     Ok(len)

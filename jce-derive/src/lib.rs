@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
-use std::error::Error;
 use proc_macro2::{Ident, Span, TokenTree};
 use quote::quote;
+use std::error::Error;
 use syn::{Data, DeriveInput};
 
 macro_rules! error {
@@ -28,105 +28,86 @@ fn try_jce(input: TokenStream) -> Result<TokenStream, Box<dyn Error>> {
     let name = input.ident;
 
     let default = quote! { Default::default() };
-    let fields_default: proc_macro2::TokenStream = s.fields
+    let fields_default: proc_macro2::TokenStream = s
+        .fields
         .iter()
         .map(|field| {
             let name = &field.ident;
             quote! { #name: #default, }
-        }).collect();
+        })
+        .collect();
 
-    let mut tokens = vec![];
+    let mut tags: Vec<u8> = vec![];
+
+    let mut tag: i32 = -1;
     for field in &s.fields {
+        if field.attrs.is_empty() {
+            tag += 1;
+            tags.push(tag as u8);
+            continue;
+        }
+
         for attr in &field.attrs {
-            if attr.path.segments.iter().find(|seg| seg.ident == "jce").is_some() {
-                tokens.push(&attr.tokens);
+            if attr
+                .path
+                .segments
+                .iter()
+                .find(|seg| seg.ident == "jce")
+                .is_some()
+            {
+                if let Some(tt) = attr.tokens.clone().into_iter().next() {
+                    match tt {
+                        TokenTree::Group(e) => {
+                            let mut stream = e.stream().into_iter();
+
+                            match (stream.next(), stream.next()) {
+                                (Some(TokenTree::Ident(ident)), Some(TokenTree::Punct(punct))) => {
+                                    if ident != "tag" || punct.as_char() != '=' {
+                                        error!("tag error");
+                                    }
+                                }
+                                _ => error!("attribute error"),
+                            }
+
+                            tag = if let Some(TokenTree::Literal(lit)) = stream.next() {
+                                let str = lit.to_string();
+                                <u8 as std::str::FromStr>::from_str(&str[1..str.len() - 1])?
+                            } else {
+                                error!("tag error");
+                            } as i32;
+
+                            tags.push(tag as u8);
+                        }
+                        _ => error!("wrong attribute"),
+                    }
+                }
                 break;
             }
         }
     }
 
-    if tokens.len() != s.fields.len() {
-        error!("field missing attribute");
-    }
-
-    let mut v: Vec<(String, u8)> = vec![];
-
-    for token in tokens {
-        if let Some(tt) = token.clone().into_iter().next() {
-            match tt {
-                TokenTree::Group(e) => {
-                    let mut stream = e.stream().into_iter();
-
-                    let ty = if let Some(TokenTree::Ident(ident)) = stream.next() {
-                        ident.to_string()
-                    } else {
-                        error!("type wrong");
-                    };
-
-                    if let Some(TokenTree::Punct(pun)) = stream.next() {
-                        if pun.as_char() == ',' {
-                        } else {
-                            error!("attribute error");
-                        }
-                    } else {
-                        if stream.next().is_some() {
-                            error!("attribute error");
-                        }
-                    }
-
-                    if let (Some(TokenTree::Ident(ident)), Some(TokenTree::Punct(punct))) = (stream.next(), stream.next()) {
-                        if ident == "tag" && punct.as_char() == '=' {
-
-                        } else {
-                            error!("tag error");
-                        }
-                    }
-
-                    let tag = if let Some(TokenTree::Literal(lit)) = stream.next() {
-                        let str = lit.to_string();
-                        <u8 as std::str::FromStr>::from_str(&str[1..str.len() - 1])?
-                    } else {
-                        error!("tag error");
-                    };
-
-                    v.push((ty, tag));
-                },
-                _ => error!("wrong attribute"),
-            }
-        }
-    }
-
     let mut matches = vec![];
+    let mut encodes = vec![];
 
-    fn primitive(type_name: &str, field: &Option<Ident>) -> proc_macro2::TokenStream {
-        let ident = Ident::new(type_name, Span::call_site());
-        quote!(::jce::types::#ident::read(buf, t, STRUCT_NAME, stringify!(#field))?)
-    }
-
-    for (i, (name, tag)) in v.into_iter().enumerate() {
+    for (i, tag) in tags.into_iter().enumerate() {
         let ident = &s.fields.iter().nth(i).unwrap().ident;
 
         let tag_to = quote!(#tag => );
+        let read = quote!(::jce::types::JceType::read(
+            buf,
+            t,
+            STRUCT_NAME,
+            stringify!(#ident)
+        )?);
 
-        matches.push(
-            match &*name {
-                "int8" => {
-                    let pri = primitive("i8", ident);
-                    quote!(#tag_to val.#ident = #pri)
-                }
-                "uint8" => {
-                    let pri = primitive("u8", ident);
-                    quote!(#tag_to val.#ident = #pri)
-                },
-                _ => error!("wrong type"),
-            }
-        )
+        matches.push(quote!(#tag_to val.#ident = #read));
+        encodes.push(quote!(::jce::types::JceType::write(&self.#ident, buf, #tag)));
     }
 
     Ok(quote! {
         impl #imp_generics ::jce::JceStruct for #name #ty_generics #where_clause {
             fn encode_raw<B: ::jce::bytes::BufMut>(&self, buf: &mut B) {
-                todo!()
+                #(#encodes);*;
             }
 
             fn encoded_len(&self) -> usize {
@@ -168,5 +149,6 @@ fn try_jce(input: TokenStream) -> Result<TokenStream, Box<dyn Error>> {
                 }
             }
         }
-    }.into())
+    }
+    .into())
 }
