@@ -2,6 +2,13 @@
 name = "jce-derive"
 version = "0.1.0"
 edition = "2021"
+authors = ["LaoLittle"]
+description = "Jce implementation in Rust"
+readme = "README.md"
+keywords = ["jce", "serialization", "encoding"]
+license = "MIT or APACHE-2.0"
+homepage = "https://github.com/LaoLittle/rust-jce"
+repository = "https://github.com/LaoLittle/rust-jce"
 
 [lib]
 proc_macro = true
