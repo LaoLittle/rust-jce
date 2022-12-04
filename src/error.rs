@@ -1,5 +1,5 @@
 use crate::types::Type;
-use std::fmt::{Display, Formatter, Write};
+use std::fmt::{Display, Formatter};
 use std::str::Utf8Error;
 use std::string::FromUtf8Error;
 
