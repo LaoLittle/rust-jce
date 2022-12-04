@@ -6,7 +6,7 @@ authors = ["LaoLittle"]
 description = "Jce implementation in Rust"
 readme = "README.md"
 keywords = ["jce", "serialization", "encoding"]
-license = "MIT or Apache-2.0"
+license = "MIT OR Apache-2.0"
 homepage = "https://github.com/LaoLittle/rust-jce"
 repository = "https://github.com/LaoLittle/rust-jce"
 
