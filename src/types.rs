@@ -17,7 +17,24 @@ pub const LIST: u8 = 9; // Vec<*Any>
 pub const STRUCT_START: u8 = 10;
 pub const STRUCT_END: u8 = 11;
 pub const EMPTY: u8 = 12; // Option<*Any>
-pub const SINGLE_LIST: u8 = 13; // Vec<T>
+pub const SINGLE_LIST: u8 = 13; // Vec<u8>(?)
+
+fn check_type(
+    current: u8,
+    expected: u8,
+    struct_name: &'static str,
+    field: &'static str,
+) -> DecodeResult<()> {
+    if current == expected {
+        Ok(())
+    } else {
+        Err(DecodeError::IncorrectType {
+            struct_name,
+            field,
+            val_type: current,
+        })
+    }
+}
 
 #[derive(Debug)]
 pub struct JceHeader {
@@ -129,15 +146,7 @@ macro_rules! primitive_type {
                     struct_name: &'static str,
                     field: &'static str,
                 ) -> $crate::error::DecodeResult<Self> {
-                    if t != $crate::types::$jce_type {
-                        return ::core::result::Result::Err(
-                            $crate::error::DecodeError::IncorrectType {
-                                struct_name,
-                                field,
-                                val_type: t,
-                            },
-                        );
-                    }
+                    $crate::types::check_type(t, $crate::types::$jce_type, struct_name, field)?;
 
                     if ::std::mem::size_of::<$type>() > buf.remaining() {
                         return ::core::result::Result::Err($crate::error::DecodeError::Eof);
@@ -250,33 +259,14 @@ macro_rules! type_array {
                     struct_name: &'static str,
                     field: &'static str,
                 ) -> $crate::error::DecodeResult<Self> {
-                    if t != $crate::types::LIST {
-                        return ::core::result::Result::Err(
-                            $crate::error::DecodeError::IncorrectType {
-                                struct_name,
-                                field,
-                                val_type: t,
-                            },
-                        );
-                    }
+                    $crate::types::check_type(t, $crate::types::LIST, struct_name, field)?;
 
                     let len = $crate::de::read_len(buf)?;
                     let mut v = Vec::with_capacity(len);
 
                     for _ in 0..len {
                         let t = $crate::types::read_type(buf)?;
-
-                        if t != $crate::types::$jce_type {
-                            return ::core::result::Result::Err(
-                            $crate::error::DecodeError::IncorrectType {
-                                struct_name,
-                                field,
-                                val_type: t,
-                            },
-                        );
-                        }
-
-                        v.push(buf.$read());
+                        v.push(<$type as $crate::types::JceType>::read(buf, t, struct_name, field)?);
                     }
 
                     Ok(v)
@@ -294,15 +284,7 @@ macro_rules! type_array {
                     $crate::ser::write_len(buf, self.len());
 
                     for val in self {
-                        $crate::ser::write_header(
-                            buf,
-                            $crate::types::JceHeader {
-                                val_type: $crate::types::$jce_type,
-                                tag: 0,
-                            }
-                        );
-
-                        buf.$write(*val);
+                        <$type as $crate::types::JceType>::write(val, buf, 0);
                     }
                 }
             }
@@ -312,6 +294,10 @@ macro_rules! type_array {
 }
 
 type_array! {
+    i8,
+    BYTE,
+    get_i8,
+    put_i8;
     i16,
     SHORT,
     get_i16,
@@ -346,11 +332,32 @@ type_array! {
     put_f64
 }
 
+mod bool {
+    use crate::error::DecodeResult;
+    use crate::types::JceType;
+    use bytes::{Buf, BufMut};
+
+    impl JceType for bool {
+        fn read<B: Buf>(
+            buf: &mut B,
+            t: u8,
+            struct_name: &'static str,
+            field: &'static str,
+        ) -> DecodeResult<Self> {
+            Ok(<u8 as JceType>::read(buf, t, struct_name, field)? != 0)
+        }
+
+        fn write<B: BufMut>(&self, buf: &mut B, tag: u8) {
+            (*self as u8).write(buf, tag);
+        }
+    }
+}
+
 mod byte_array {
     use crate::de::{check_buf, check_buf_zero, read_len};
     use crate::error::{DecodeError, DecodeResult};
     use crate::ser::write_header;
-    use crate::types::{read_type, JceHeader, JceType, BYTE};
+    use crate::types::{read_type, JceHeader, JceType};
     use bytes::{Buf, BufMut};
 
     fn read_bytes_len<B: Buf>(
@@ -372,7 +379,7 @@ mod byte_array {
             }
             super::SINGLE_LIST => {
                 let t = read_type(buf)?;
-                if t != BYTE {
+                if t != super::BYTE {
                     return Err(DecodeError::IncorrectType {
                         struct_name,
                         field,
@@ -400,21 +407,35 @@ mod byte_array {
         }
 
         value[..len].copy_from_slice(&buf.chunk()[..len]);
+        buf.advance(len);
 
         Ok(())
     }
 
-    fn write_slice<B: BufMut>(buf: &mut B, value: &[u8], tag: u8) {
-        write_header(buf, JceHeader { val_type: 0, tag });
+    pub fn write_slice<B: BufMut>(buf: &mut B, value: &[u8], tag: u8) {
+        let len = value.len();
+        if let Ok(len) = u8::try_from(len) {
+            write_header(
+                buf,
+                JceHeader {
+                    val_type: super::SHORT_BYTES,
+                    tag,
+                },
+            );
 
-        match u8::try_from(value.len()) {
-            Ok(len) => {
-                buf.put_u8(len);
-            }
-            Err(_) => {
-                let len = value.len() as u32;
-                buf.put_u32(len);
-            }
+            buf.put_u8(len);
+        } else if let Ok(len) = u32::try_from(len) {
+            write_header(
+                buf,
+                JceHeader {
+                    val_type: super::LONG_BYTES,
+                    tag,
+                },
+            );
+
+            buf.put_u32(len);
+        } else {
+            panic!("bytes too long");
         }
 
         buf.put_slice(value);
@@ -427,6 +448,21 @@ mod byte_array {
             struct_name: &'static str,
             field: &'static str,
         ) -> DecodeResult<Vec<u8>> {
+            if t == super::LIST {
+                let len = read_len(buf)?;
+
+                let mut v = Vec::with_capacity(len);
+
+                for _ in 0..len {
+                    let t = read_type(buf)?;
+                    super::check_type(t, super::BYTE, struct_name, field)?;
+
+                    v.push(buf.get_u8());
+                }
+
+                return Ok(v);
+            }
+
             let len = read_bytes_len(buf, t, struct_name, field)?;
 
             let mut v = vec![0u8; len];
@@ -480,8 +516,92 @@ mod byte_array {
     }
 }
 
-mod jce_struct {
+mod string {
     use crate::error::{DecodeError, DecodeResult};
+    use crate::types::JceType;
+    use bytes::{Buf, BufMut};
+
+    impl JceType for String {
+        fn read<B: Buf>(
+            buf: &mut B,
+            t: u8,
+            struct_name: &'static str,
+            field: &'static str,
+        ) -> DecodeResult<Self> {
+            let vec = <Vec<u8> as JceType>::read(buf, t, struct_name, field)?;
+            String::from_utf8(vec).map_err(DecodeError::from)
+        }
+
+        fn write<B: BufMut>(&self, buf: &mut B, tag: u8) {
+            super::byte_array::write_slice(buf, self.as_bytes(), tag);
+        }
+    }
+}
+
+mod map {
+    use crate::de::read_len;
+    use crate::error::DecodeResult;
+    use crate::ser::{write_header, write_len};
+    use crate::types::{read_type, JceHeader, JceType};
+    use bytes::{Buf, BufMut};
+    use std::collections::HashMap;
+    use std::hash::Hash;
+
+    const TAG_KEY: u8 = 0;
+    const TAG_VAL: u8 = 1;
+
+    impl<K, V> JceType for HashMap<K, V>
+    where
+        K: JceType,
+        K: Eq + Hash,
+        V: JceType,
+    {
+        fn read<B: Buf>(
+            buf: &mut B,
+            t: u8,
+            struct_name: &'static str,
+            field: &'static str,
+        ) -> DecodeResult<Self> {
+            super::check_type(t, super::MAP, struct_name, field)?;
+
+            let len = read_len(buf)?;
+
+            let mut map = Self::new();
+
+            for _ in 0..len {
+                let kt = read_type(buf)?;
+                let k = K::read(buf, kt, struct_name, field)?;
+                let vt = read_type(buf)?;
+                let v = V::read(buf, vt, struct_name, field)?;
+
+                map.insert(k, v);
+            }
+
+            Ok(map)
+        }
+
+        fn write<B: BufMut>(&self, buf: &mut B, tag: u8) {
+            write_header(
+                buf,
+                JceHeader {
+                    val_type: super::MAP,
+                    tag,
+                },
+            );
+
+            let len = self.len();
+            write_len(buf, len);
+
+            for (k, v) in self {
+                k.write(buf, TAG_KEY);
+                v.write(buf, TAG_VAL);
+            }
+        }
+    }
+}
+
+mod jce_struct {
+    use crate::error::DecodeResult;
     use crate::ser::{write_header, write_type};
     use crate::types::{JceHeader, JceType};
     use crate::JceStruct;
@@ -494,15 +614,9 @@ mod jce_struct {
             struct_name: &'static str,
             field: &'static str,
         ) -> DecodeResult<Self> {
-            if t != super::STRUCT_START {
-                return Err(DecodeError::IncorrectType {
-                    struct_name,
-                    field,
-                    val_type: t,
-                });
-            }
+            super::check_type(t, super::STRUCT_START, struct_name, field)?;
 
-            T::decode_raw(buf, false)
+            Self::decode_raw(buf, false)
         }
 
         fn write<B: BufMut>(&self, buf: &mut B, tag: u8) {

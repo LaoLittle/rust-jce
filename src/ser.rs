@@ -1,3 +1,4 @@
+use crate::types;
 use crate::types::JceHeader;
 use bytes::BufMut;
 
@@ -14,7 +15,7 @@ pub fn write_empty<B: BufMut>(buf: &mut B, tag: u8) {
     write_header(
         buf,
         JceHeader {
-            val_type: crate::types::EMPTY,
+            val_type: types::EMPTY,
             tag,
         },
     );
@@ -25,6 +26,19 @@ pub fn write_type<B: BufMut>(buf: &mut B, t: u8) {
 }
 
 pub fn write_len<B: BufMut>(buf: &mut B, len: usize) {
-    buf.put_u8(crate::types::INT);
-    buf.put_u32(len as u32);
+    if let Ok(len) = u8::try_from(len) {
+        buf.put_u8(types::BYTE);
+        buf.put_u8(len);
+    } else if let Ok(len) = u16::try_from(len) {
+        buf.put_u8(types::SHORT);
+        buf.put_u16(len);
+    } else if let Ok(len) = u32::try_from(len) {
+        buf.put_u8(types::INT);
+        buf.put_u32(len);
+    } else if let Ok(len) = u64::try_from(len) {
+        buf.put_u8(types::LONG);
+        buf.put_u64(len);
+    } else {
+        unreachable!();
+    }
 }

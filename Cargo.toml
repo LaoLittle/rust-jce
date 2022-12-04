@@ -2,8 +2,13 @@
 name = "jce"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = ["LaoLittle"]
+description = "Jce implementation in Rust"
+readme = "README.md"
+keywords = ["jce", "serialization", "encoding"]
+license = "MIT or APACHE-2.0"
+homepage = "https://github.com/LaoLittle/rust-jce"
+repository = "https://github.com/LaoLittle/rust-jce"
 
 [dependencies]
 bytes = "1"

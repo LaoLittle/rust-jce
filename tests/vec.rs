@@ -5,18 +5,29 @@ use jce::JceStruct;
 fn vec() {
     #[derive(JceStruct, Debug)]
     struct V {
-        a: Vec<i16>,
-        d: Bytes,
+        a: Vec<i8>,
+        b: B,
+    }
+
+    #[derive(JceStruct, Debug)]
+    struct B {
+        b: Bytes,
+        ca: i32,
+        cbb: Vec<i32>,
     }
 
     let v = V {
-        a: vec![114, 514],
-        d: Bytes::from_static(&[114, 51, 4]),
+        a: vec![114, 127],
+        b: B {
+            b: Bytes::from_static(&[114, 5, 14]),
+            ca: 114514,
+            cbb: vec![114514, 1919810],
+        },
     };
 
-    let mut bytes = Vec::new();
+    let mut bytes: Vec<u8> = Vec::new();
     v.encode(&mut bytes);
 
     println!("{:?}", bytes);
-    println!("{:?}", V::decode([9, 2, 0, 0, 0, 2, 1, 0, 114, 1, 2, 2, 16, 3, 114, 51, 4].as_ref()));
+    println!("{:?}", V::decode(&*bytes).unwrap());
 }

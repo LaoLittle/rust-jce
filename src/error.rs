@@ -1,5 +1,6 @@
 use crate::types::Type;
 use std::fmt::{Display, Formatter};
+use std::string::FromUtf8Error;
 
 pub type DecodeResult<T> = Result<T, DecodeError>;
 
@@ -13,6 +14,7 @@ pub enum DecodeError {
     InvalidType,
     Eof,
     InvalidLength,
+    String(FromUtf8Error),
 }
 
 impl Display for DecodeError {
@@ -37,6 +39,13 @@ impl Display for DecodeError {
             Self::InvalidType => f.write_str("invalid type"),
             Self::Eof => f.write_str("unexpected eof"),
             Self::InvalidLength => f.write_str("invalid length"),
+            Self::String(e) => Display::fmt(e, f),
         }
+    }
+}
+
+impl From<FromUtf8Error> for DecodeError {
+    fn from(err: FromUtf8Error) -> Self {
+        Self::String(err)
     }
 }

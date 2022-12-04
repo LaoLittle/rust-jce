@@ -1,5 +1,5 @@
 use proc_macro::TokenStream;
-use proc_macro2::{Ident, Span, TokenTree};
+use proc_macro2::TokenTree;
 use quote::quote;
 use std::error::Error;
 use syn::{Data, DeriveInput};
@@ -28,19 +28,15 @@ fn try_jce(input: TokenStream) -> Result<TokenStream, Box<dyn Error>> {
     let name = input.ident;
 
     let default = quote! { Default::default() };
-    let fields_default: proc_macro2::TokenStream = s
-        .fields
-        .iter()
-        .map(|field| {
-            let name = &field.ident;
-            quote! { #name: #default, }
-        })
-        .collect();
+    let mut fields_default: Vec<proc_macro2::TokenStream> = vec![];
 
     let mut tags: Vec<u8> = vec![];
 
     let mut tag: i32 = -1;
     for field in &s.fields {
+        let ident = &field.ident;
+        fields_default.push(quote!(#ident: #default));
+
         if field.attrs.is_empty() {
             tag += 1;
             tags.push(tag as u8);
@@ -123,14 +119,13 @@ fn try_jce(input: TokenStream) -> Result<TokenStream, Box<dyn Error>> {
                 let mut val = Self::default();
 
                 let mut t = 0;
-                while if to_end {
-                    buf.remaining() > 0
-                } else {
-                    t != ::jce::types::STRUCT_END
-                } {
+                while buf.remaining() > 0 {
                     let header = ::jce::de::read_header(buf)?;
 
                     t = header.value_type();
+                    if !to_end && t == ::jce::types::STRUCT_END {
+                        break;
+                    }
 
                     match header.tag() {
                         #(#matches),*,
@@ -145,7 +140,7 @@ fn try_jce(input: TokenStream) -> Result<TokenStream, Box<dyn Error>> {
         impl #imp_generics ::core::default::Default for #name #ty_generics #where_clause {
             fn default() -> Self {
                 Self {
-                    #fields_default
+                    #(#fields_default),*,
                 }
             }
         }

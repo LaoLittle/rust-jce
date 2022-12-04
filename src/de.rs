@@ -23,7 +23,7 @@ pub fn read_header<B: Buf>(buf: &mut B) -> DecodeResult<JceHeader> {
     let head = buf.get_u8();
 
     let t = head & 0xF;
-    let mut tag = head >> 4; // 直接获取尾四个bits
+    let mut tag = head >> 4; // 直接获取高四位
 
     if tag == 0xF {
         check_buf_zero(buf)?;
