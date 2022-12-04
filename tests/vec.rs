@@ -1,21 +1,21 @@
 use bytes::Bytes;
 use jce::JceStruct;
 
+#[derive(JceStruct, Debug)]
+struct V {
+    a: Vec<i8>,
+    b: B,
+}
+
+#[derive(JceStruct, Debug)]
+struct B {
+    b: Bytes,
+    ca: i32,
+    cbb: Vec<i32>,
+}
+
 #[test]
 fn vec() {
-    #[derive(JceStruct, Debug)]
-    struct V {
-        a: Vec<i8>,
-        b: B,
-    }
-
-    #[derive(JceStruct, Debug)]
-    struct B {
-        b: Bytes,
-        ca: i32,
-        cbb: Vec<i32>,
-    }
-
     let v = V {
         a: vec![114, 127],
         b: B {
@@ -26,7 +26,7 @@ fn vec() {
     };
 
     let mut bytes: Vec<u8> = Vec::new();
-    v.encode(&mut bytes);
+    v.encode(&mut bytes).unwrap();
 
     println!("{:?}", bytes);
     println!("{:?}", V::decode(&*bytes).unwrap());

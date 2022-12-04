@@ -30,12 +30,16 @@ fn try_jce(input: TokenStream) -> Result<TokenStream, Box<dyn Error>> {
     let default = quote! { Default::default() };
     let mut fields_default: Vec<proc_macro2::TokenStream> = vec![];
 
+    let mut fields_encoded_len: Vec<proc_macro2::TokenStream> = vec![];
+
     let mut tags: Vec<u8> = vec![];
 
     let mut tag: i32 = -1;
     for field in &s.fields {
         let ident = &field.ident;
         fields_default.push(quote!(#ident: #default));
+
+        fields_encoded_len.push(quote!(::jce::types::JceType::write_len(&self.#ident)));
 
         if field.attrs.is_empty() {
             tag += 1;
@@ -85,6 +89,12 @@ fn try_jce(input: TokenStream) -> Result<TokenStream, Box<dyn Error>> {
     let mut matches = vec![];
     let mut encodes = vec![];
 
+    let tags_encoded_len: usize = tags.iter().map(|tag|
+        if *tag < 0xF {
+            1
+        } else { 2 }
+    ).sum();
+
     for (i, tag) in tags.into_iter().enumerate() {
         let ident = &s.fields.iter().nth(i).unwrap().ident;
 
@@ -107,7 +117,7 @@ fn try_jce(input: TokenStream) -> Result<TokenStream, Box<dyn Error>> {
             }
 
             fn encoded_len(&self) -> usize {
-                todo!()
+                #tags_encoded_len + #(#fields_encoded_len)+*
             }
 
             fn decode_raw<B: ::jce::bytes::Buf>(

@@ -1,5 +1,5 @@
 use crate::types::Type;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display, Formatter, Write};
 use std::str::Utf8Error;
 use std::string::FromUtf8Error;
 
@@ -45,6 +45,9 @@ impl Display for DecodeError {
     }
 }
 
+
+impl std::error::Error for DecodeError {}
+
 impl From<Utf8Error> for DecodeError {
     fn from(err: Utf8Error) -> Self {
         Self::String(err)
@@ -56,3 +59,16 @@ impl From<FromUtf8Error> for DecodeError {
         Self::from(err.utf8_error())
     }
 }
+
+pub type EncodeResult<T> = Result<T, EncodeError>;
+
+#[derive(Debug)]
+pub struct EncodeError;
+
+impl Display for EncodeError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("encode length exceeds buffer")
+    }
+}
+
+impl std::error::Error for EncodeError {}

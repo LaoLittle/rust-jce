@@ -42,3 +42,21 @@ pub fn write_len<B: BufMut>(buf: &mut B, len: usize) {
         unreachable!();
     }
 }
+
+pub fn len_bytes(len: usize) -> usize {
+    const U8: usize = u8::MAX as usize;
+    const U81: usize = U8 + 1;
+    const U16: usize = u16::MAX as usize;
+    const U161: usize = U16 + 1;
+    const U32: usize = u32::MAX as usize;
+    const U321: usize = U32 + 1;
+    const U64: usize = u64::MAX as usize;
+
+    match len {
+        0..=U8 => 1,
+        U81..=U16 => 2,
+        U161..=U32 => 4,
+        U321..=U64 => 8,
+        _ => unreachable!(),
+    }
+}

@@ -1,6 +1,6 @@
 [package]
 name = "jce"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["LaoLittle"]
 description = "Jce implementation in Rust"
@@ -14,5 +14,5 @@ repository = "https://github.com/LaoLittle/rust-jce"
 bytes = "1"
 
 [dependencies.jce-derive]
-version = "0"
+version = "0.1.1"
 path = "jce-derive"

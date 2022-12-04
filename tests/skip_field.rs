@@ -1,16 +1,16 @@
 use bytes::BytesMut;
 use jce::JceStruct;
 
+#[derive(JceStruct, Debug)]
+struct A {
+    #[jce(tag = "1")]
+    field1: i8,
+    // tag = 2
+    field2: u8,
+}
+
 #[test]
 fn skip_field() {
-    #[derive(JceStruct, Debug)]
-    struct A {
-        #[jce(tag = "1")]
-        field1: i8,
-        // tag = 2
-        field2: u8,
-    }
-
     // {
     //    0: "232",
     //    1: 12,
@@ -36,7 +36,7 @@ fn skip_field() {
     assert_eq!(a.field2, 253);
 
     let mut byte = BytesMut::new();
-    A::encode(&a, &mut byte);
+    A::encode(&a, &mut byte).unwrap();
 
     println!("{:?}", A::decode(&*byte));
 }

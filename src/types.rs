@@ -106,6 +106,8 @@ pub trait JceType: Sized {
     ) -> DecodeResult<Self>;
 
     fn write<B: BufMut>(&self, buf: &mut B, tag: u8);
+
+    fn write_len(&self) -> usize;
 }
 
 impl<T: JceType> JceType for Option<T> {
@@ -127,6 +129,13 @@ impl<T: JceType> JceType for Option<T> {
             t.write(buf, tag);
         } else {
             write_empty(buf, tag);
+        }
+    }
+
+    fn write_len(&self) -> usize {
+        match self {
+            Some(t) => t.write_len(),
+            None => 0,
         }
     }
 }
@@ -165,6 +174,10 @@ macro_rules! primitive_type {
                     );
 
                     buf.$write(*self);
+                }
+
+                fn write_len(&self) -> usize {
+                    ::std::mem::size_of::<$type>()
                 }
             }
         }
@@ -287,6 +300,14 @@ macro_rules! type_array {
                         <$type as $crate::types::JceType>::write(val, buf, 0);
                     }
                 }
+
+                fn write_len(&self) -> usize {
+                    let len = self.len();
+                    $crate::ser::len_bytes(len)
+                    + len // each header
+                    + len * ::std::mem::size_of::<$type>()
+                    + 1 // len type
+                }
             }
             )*
         }
@@ -349,6 +370,10 @@ mod bool {
 
         fn write<B: BufMut>(&self, buf: &mut B, tag: u8) {
             (*self as u8).write(buf, tag);
+        }
+
+        fn write_len(&self) -> usize {
+            std::mem::size_of::<bool>()
         }
     }
 }
@@ -441,6 +466,16 @@ mod byte_array {
         buf.put_slice(value);
     }
 
+    pub fn slice_encoded_len(slice: &[u8]) -> usize {
+        let bytes_len = if slice.len() < u8::MAX as usize {
+            1
+        } else {
+            4
+        };
+
+        bytes_len + slice.len()
+    }
+
     impl JceType for Vec<u8> {
         fn read<B: Buf>(
             buf: &mut B,
@@ -474,6 +509,10 @@ mod byte_array {
         fn write<B: BufMut>(&self, buf: &mut B, tag: u8) {
             write_slice(buf, self, tag);
         }
+
+        fn write_len(&self) -> usize {
+            slice_encoded_len(self)
+        }
     }
 
     impl JceType for bytes::Bytes {
@@ -488,6 +527,10 @@ mod byte_array {
 
         fn write<B: BufMut>(&self, buf: &mut B, tag: u8) {
             write_slice(buf, self, tag);
+        }
+
+        fn write_len(&self) -> usize {
+            slice_encoded_len(self)
         }
     }
 
@@ -513,11 +556,15 @@ mod byte_array {
         fn write<B: BufMut>(&self, buf: &mut B, tag: u8) {
             write_slice(buf, self, tag);
         }
+
+        fn write_len(&self) -> usize {
+            slice_encoded_len(self)
+        }
     }
 }
 
 mod string {
-    use crate::error::{DecodeError, DecodeResult};
+    use crate::error::DecodeResult;
     use crate::types::JceType;
     use bytes::{Buf, BufMut};
 
@@ -529,11 +576,15 @@ mod string {
             field: &'static str,
         ) -> DecodeResult<Self> {
             let vec = <Vec<u8> as JceType>::read(buf, t, struct_name, field)?;
-            String::from_utf8(vec).map_err(DecodeError::from)
+            Ok(String::from_utf8(vec)?)
         }
 
         fn write<B: BufMut>(&self, buf: &mut B, tag: u8) {
             super::byte_array::write_slice(buf, self.as_bytes(), tag);
+        }
+
+        fn write_len(&self) -> usize {
+            super::byte_array::slice_encoded_len(self.as_bytes())
         }
     }
 }
@@ -597,6 +648,16 @@ mod map {
                 v.write(buf, TAG_VAL);
             }
         }
+
+        fn write_len(&self) -> usize {
+            if let Some((k, v)) = self.iter().next() {
+                let len = self.len();
+
+                (len * 2) + (len * (k.write_len() + v.write_len()))
+            } else {
+                0
+            }
+        }
     }
 }
 
@@ -629,6 +690,10 @@ mod jce_struct {
             );
             self.encode_raw(buf);
             write_type(buf, super::STRUCT_END);
+        }
+
+        fn write_len(&self) -> usize {
+            <Self as JceStruct>::encoded_len(self) + 1
         }
     }
 }

@@ -2,13 +2,13 @@ use bytes::BytesMut;
 use jce::JceStruct;
 use std::collections::HashMap;
 
+#[derive(JceStruct, Debug)]
+struct M {
+    map: HashMap<String, i16>,
+}
+
 #[test]
 fn map() {
-    #[derive(JceStruct, Debug)]
-    struct M {
-        map: HashMap<String, i16>,
-    }
-
     println!(
         "{:?}",
         M::decode([8, 0, 2, 6, 2, 49, 50, 17, 1, 66, 6, 2, 49, 52, 17, 1, 66].as_ref()).unwrap()
@@ -23,7 +23,7 @@ fn map() {
             map
         },
     }
-    .encode(&mut enc);
+    .encode(&mut enc).unwrap();
 
     println!("{:?}", &*enc);
 }

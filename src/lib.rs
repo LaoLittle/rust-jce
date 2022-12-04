@@ -1,4 +1,4 @@
-use crate::error::DecodeResult;
+use crate::error::{DecodeResult, EncodeError, EncodeResult};
 
 pub mod bytes;
 pub mod de;
@@ -14,8 +14,13 @@ pub use jce_derive::JceStruct;
 pub trait JceStruct: Sized {
     fn encode_raw<B: BufMut>(&self, buf: &mut B);
 
-    fn encode<B: BufMut>(&self, mut buf: B) {
+    fn encode<B: BufMut>(&self, mut buf: B) -> EncodeResult<()> {
+        if self.encoded_len() > buf.remaining_mut() {
+            return Err(EncodeError);
+        }
+
         self.encode_raw(&mut buf);
+        Ok(())
     }
 
     fn encoded_len(&self) -> usize;

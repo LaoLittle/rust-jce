@@ -28,7 +28,7 @@ fn person() {
     };
 
     let mut b = vec![0u8; 0];
-    person.encode(&mut b);
+    person.encode(&mut b).unwrap();
     println!("{:?}", &*b);
     let decode = Person::decode(&*b).unwrap();
 
