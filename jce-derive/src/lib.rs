@@ -27,7 +27,7 @@ fn try_jce(input: TokenStream) -> Result<TokenStream, Box<dyn Error>> {
 
     let name = input.ident;
 
-    let default = quote! { Default::default() };
+    let default = quote! { ::core::default::Default::default() };
     let mut fields_default: Vec<proc_macro2::TokenStream> = vec![];
 
     let mut fields_encoded_len: Vec<proc_macro2::TokenStream> = vec![];

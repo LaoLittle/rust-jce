@@ -46,7 +46,7 @@ fn main() {
     };
 
     let mut b = vec![0u8; 0];
-    person.encode(&mut b);
+    person.encode(&mut b).unwrap();
     println!("{:?}", &*b);
     let decode = Person::decode(&*b).unwrap();
 
@@ -67,5 +67,5 @@ fn main() {
 | MAP                       | HashMap\<K, V\>            |
 | LIST                      | Vec\<T\>                   |
 | STRUCT_START + STRUCT_END | JceStruct                  |
-| EMPTY                     | Option\<T\>                |
+| EMPTY                     | None::\<T\>                |
 | SINGLE_LIST               | Vec\<u8\> / Bytes          |
