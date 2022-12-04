@@ -10,10 +10,11 @@
 `jce` is a Jce encoding/decoding implementation for the
 Rust programing language.
 
-Why use `jce`?
+Why `jce`?
 
 - Written in pure rust
 - Easy-to-use
+
 use a simple derive `JceStruct`
 
 let's define a struct first.
