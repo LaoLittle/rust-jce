@@ -26,12 +26,12 @@ struct Person {
     male: bool, // tag = 5
     phone: u64, // tag = 6
     #[jce(tag = "11")]
-    home: Home,
+    home: Home, // tag = 11
 }
 
 #[derive(JceStruct, PartialEq, Debug)]
 struct Home {
-    location: String,
+    location: String, // tag = 0
 }
 
 fn main() {
