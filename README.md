@@ -55,17 +55,17 @@ fn main() {
 ```
 
 ### Fields
-| Jce Type                  | Rust Type                |
-|---------------------------|--------------------------|
-| BYTE                      | i8 / u8                  |
-| SHORT                     | i16 / u16                |
-| INT                       | i32 / u32                |
-| LONG                      | i64 / u64                |
-| FLOAT                     | f32                      |
-| DOUBLE                    | f64                      |
-| SHORT_BYTES / LONG_BYTES  | Vec<u8> / Bytes / String |
-| MAP                       | HashMap<K, V>            |
-| LIST                      | Vec<T>                   |
-| STRUCT_START + STRUCT_END | JceStruct                |
-| EMPTY                     | Option<T>                |
-| SINGLE_LIST               | Vec<u8> / Bytes          |
+| Jce Type                  | Rust Type                  |
+|---------------------------|----------------------------|
+| BYTE                      | i8 / u8                    |
+| SHORT                     | i16 / u16                  |
+| INT                       | i32 / u32                  |
+| LONG                      | i64 / u64                  |
+| FLOAT                     | f32                        |
+| DOUBLE                    | f64                        |
+| SHORT_BYTES / LONG_BYTES  | Vec\<u8\> / Bytes / String |
+| MAP                       | HashMap<K, V>              |
+| LIST                      | Vec\<T\>                   |
+| STRUCT_START + STRUCT_END | JceStruct                  |
+| EMPTY                     | Option\<T\>                |
+| SINGLE_LIST               | Vec\<u8\> / Bytes          |
