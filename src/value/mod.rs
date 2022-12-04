@@ -119,15 +119,15 @@ fn read_value<B: Buf>(buf: &mut B, t: u8) -> DecodeResult<Value> {
             let mut map = HashMap::new();
 
             for _ in 0..len {
-                let key = read_elem(buf);
-                let value = read_elem(buf);
+                let key = read_elem(buf)?;
+                let value = read_elem(buf)?;
 
                 let s = if let Value::Bytes(b) = key {
-                    let str = std::str::from_utf8(&b).unwrap();
+                    let str = std::str::from_utf8(&b)?;
 
                     str.to_owned()
                 } else {
-                    unreachable!();
+                    return Err(DecodeError::InvalidType);
                 };
 
                 map.insert(s, value);
@@ -141,40 +141,34 @@ fn read_value<B: Buf>(buf: &mut B, t: u8) -> DecodeResult<Value> {
             let mut list = Vec::with_capacity(len);
 
             for _ in 0..len {
-                list.push(read_elem(buf))
+                list.push(read_elem(buf)?);
             }
 
             list
         }),
         types::EMPTY => Value::Empty,
-        _ => {
-            return Err(DecodeError::IncorrectType {
-                struct_name: "Map",
-                field: "",
-                val_type: t,
-            })
-        }
+        _ => return Err(DecodeError::InvalidType),
     };
 
     Ok(val)
 }
 
-pub fn read_elem<B: Buf>(buf: &mut B) -> Value {
+pub fn read_elem<B: Buf>(buf: &mut B) -> DecodeResult<Value> {
     let t = buf.get_u8() & 0xF;
-    read_value(buf, t).unwrap()
+    read_value(buf, t)
 }
 
-pub fn read_to_hashmap<B: Buf>(mut buf: B) -> HashMap<u8, Value> {
+pub fn read_to_hashmap<B: Buf>(mut buf: B) -> DecodeResult<HashMap<u8, Value>> {
     let mut map = HashMap::new();
 
     while buf.remaining() > 0 {
-        let header = read_header(&mut buf).unwrap();
-        let value = read_value(&mut buf, header.value_type());
+        let header = read_header(&mut buf)?;
+        let value = read_value(&mut buf, header.value_type())?;
 
-        map.insert(header.tag(), value.unwrap());
+        map.insert(header.tag(), value);
     }
 
-    map
+    Ok(map)
 }
 
 #[cfg(test)]
@@ -191,13 +185,13 @@ mod tests {
 
         let s = read_to_hashmap(bytes);
 
-        println!("{:?}", s);
+        assert!(s.is_ok());
     }
 
     #[test]
     fn de2() {
         let bytes = [0, 127, 24, 12];
 
-        println!("{:?}", read_to_hashmap(bytes.as_ref()));
+        assert!(read_to_hashmap(bytes.as_ref()).is_ok());
     }
 }

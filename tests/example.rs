@@ -2,10 +2,10 @@ use jce::JceStruct;
 #[derive(JceStruct, PartialEq, Debug)]
 struct Person {
     name: String, // tag = 0
-    age: u8, // tag = 1
+    age: u8,      // tag = 1
     #[jce(tag = "5")]
     male: bool, // tag = 5
-    phone: u64, // tag = 6
+    phone: u64,   // tag = 6
     #[jce(tag = "11")]
     home: Home, // tag = 11
 }
@@ -23,8 +23,8 @@ fn person() {
         male: true,
         phone: 1145141919810,
         home: Home {
-            location: "下北泽".into()
-        }
+            location: "下北泽".into(),
+        },
     };
 
     let mut b = vec![0u8; 0];

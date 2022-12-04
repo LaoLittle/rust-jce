@@ -64,7 +64,7 @@ fn main() {
 | FLOAT                     | f32                        |
 | DOUBLE                    | f64                        |
 | SHORT_BYTES / LONG_BYTES  | Vec\<u8\> / Bytes / String |
-| MAP                       | HashMap<K, V>              |
+| MAP                       | HashMap\<K, V\>            |
 | LIST                      | Vec\<T\>                   |
 | STRUCT_START + STRUCT_END | JceStruct                  |
 | EMPTY                     | Option\<T\>                |

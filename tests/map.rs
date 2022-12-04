@@ -1,6 +1,6 @@
+use bytes::BytesMut;
 use jce::JceStruct;
 use std::collections::HashMap;
-use bytes::BytesMut;
 
 #[test]
 fn map() {
@@ -21,8 +21,9 @@ fn map() {
             map.insert("123".into(), 114);
             map.insert("456".into(), 514);
             map
-        }
-    }.encode(&mut enc);
+        },
+    }
+    .encode(&mut enc);
 
     println!("{:?}", &*enc);
 }

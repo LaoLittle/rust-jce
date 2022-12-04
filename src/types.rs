@@ -44,13 +44,13 @@ pub struct JceHeader {
 
 impl JceHeader {
     #[inline]
-    pub fn tag(&self) -> u8 {
-        self.tag
+    pub fn value_type(&self) -> u8 {
+        self.val_type
     }
 
     #[inline]
-    pub fn value_type(&self) -> u8 {
-        self.val_type
+    pub fn tag(&self) -> u8 {
+        self.tag
     }
 }
 

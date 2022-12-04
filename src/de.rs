@@ -70,8 +70,9 @@ mod tests {
     #[test]
     fn int() {
         let head = [58];
-        let header = read_header(&mut head.as_ref());
+        let header = read_header(&mut head.as_ref()).unwrap();
 
-        println!("{:?}", header);
+        assert_eq!(header.value_type(), 10);
+        assert_eq!(header.tag(), 3);
     }
 }
